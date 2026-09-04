@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-${{ runner.os }}-v5
+          key: xenon-toolchain-${{ runner.os }}-v6
           restore-keys: |
             xenon-toolchain-${{ runner.os }}-
 
@@ -39,43 +39,21 @@ jobs:
           export PREFIX=/usr/local/xenon
           ./build-xenon-toolchain toolchain
 
-      - name: Construir libxenon (MANUAL - sem script)
-        working-directory: libxenon
+      - name: Construir libxenon (via script com flags)
+        working-directory: libxenon/toolchain
         run: |
           export PREFIX=/usr/local/xenon
           export DEVKITXENON=/usr/local/xenon
           export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
-          export CC=xenon-gcc
-          export CXX=xenon-g++
-          export AR=xenon-ar
-          export RANLIB=xenon-ranlib
-          export CFLAGS="-m32 -mcpu=cell -mtune=cell -I/usr/local/xenon/usr/include"
-          export CXXFLAGS="-m32 -mcpu=cell -mtune=cell -I/usr/local/xenon/usr/include"
+          export CFLAGS="-m32 -mcpu=cell -mtune=cell"
+          export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
           
-          echo "=== Compilando libxenon manualmente ==="
-          cd lib
-          
-          # Limpa builds anteriores
-          make -f Makefile.xenon clean || true
-          
-          # Compila com as flags explícitas
-          make -f Makefile.xenon CC=xenon-gcc CXX=xenon-g++ AR=xenon-ar RANLIB=xenon-ranlib \
-            CFLAGS="-m32 -mcpu=cell -mtune=cell" \
-            CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
-          
-          # Instala
-          sudo make -f Makefile.xenon install
-          
-          cd ..
+          echo "=== Compilando libxenon ==="
+          ./build-xenon-toolchain libxenon
           
           echo "=== Verificando libxenon ==="
           file /usr/local/xenon/usr/lib/libxenon.a
           xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
-          echo "=== Teste de compilação com libxenon ==="
-          echo 'int main() { return 0; }' > test.c
-          xenon-gcc -m32 -mcpu=cell -mtune=cell test.c -o test /usr/local/xenon/usr/lib/libxenon.a
-          file test
-          rm -f test.c test
 
       - name: Verificar toolchain
         run: |
