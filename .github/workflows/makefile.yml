@@ -57,6 +57,15 @@ jobs:
           which xenon-ld
           which xenon-objcopy
           xenon-gcc --version
+          
+      - name: Debug - verificar libxenon
+        run: |
+          echo "=== Conteúdo de /usr/local/xenon/usr/lib/ ==="
+          ls -la /usr/local/xenon/usr/lib/ || echo "Pasta não encontrada!"
+          echo "=== Verificando libxenon.a ==="
+          file /usr/local/xenon/usr/lib/libxenon.a || echo "Arquivo libxenon.a não encontrado!"
+          echo "=== Procurando libxenon em outros lugares ==="
+          find /usr/local -name "libxenon*" 2>/dev/null
 
       # ELF2XEX: SynthXEX (FreeChainXenon) - ferramenta open-source encontrada
       # para esse propósito. IMPORTANTE: não foi validada contra ELFs gerados
