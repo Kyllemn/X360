@@ -42,14 +42,14 @@ jobs:
 
       - name: Construir e instalar libxenon
         working-directory: libxenon/toolchain
-          run: |
-            export PREFIX=/usr/local/xenon
-            export DEVKITXENON=/usr/local/xenon
-            export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
-            export CFLAGS="-m32 -mcpu=cell -mtune=cell"
-            export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
-            rm -rf ../lib
-            ./build-xenon-toolchain libxenon
+        run: |
+              export PREFIX=/usr/local/xenon
+              export DEVKITXENON=/usr/local/xenon
+              export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+              export CFLAGS="-m32 -mcpu=cell -mtune=cell"
+              export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
+              rm -rf ../lib
+              ./build-xenon-toolchain libxenon
 
       - name: Verificar toolchain (não aceitar apenas "existir")
         run: |
