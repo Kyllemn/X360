@@ -14,8 +14,9 @@ XEX := $(BUILD)/$(NAME).xex
 CFLAGS := -O2 -g -Wall -Wextra -DXENON
 CFLAGS += -I$(DEVKITXENON)/usr/include
 
+# CORREÇÃO: aponta para o lugar certo da libxenon
 LDFLAGS := -T$(DEVKITXENON)/app.lds
-LDFLAGS += -L$(DEVKITXENON)/usr/lib
+LDFLAGS += -L$(DEVKITXENON)/usr/lib    # <--- ESSE É O CAMINHO CERTO
 
 LIBS := -lxenon -lm
 
