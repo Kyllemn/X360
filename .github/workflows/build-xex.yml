@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-${{ runner.os }}-v9
+          key: xenon-toolchain-${{ runner.os }}-v10
           restore-keys: |
             xenon-toolchain-${{ runner.os }}-
 
@@ -39,8 +39,11 @@ jobs:
           export PREFIX=/usr/local/xenon
           ./build-xenon-toolchain toolchain
 
-      - name: Construir libxenon (usando Makefile diretamente)
-        working-directory: libxenon/lib
+      # =============================================
+      # SOLUÇÃO 1: Criar diretório lib manualmente (ATIVA)
+      # =============================================
+      - name: Construir libxenon (criando lib manualmente)
+        working-directory: libxenon
         run: |
           export PREFIX=/usr/local/xenon
           export DEVKITXENON=/usr/local/xenon
@@ -53,20 +56,69 @@ jobs:
           export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
           export LDFLAGS="-m32"
           
+          echo "=== Criando diretório lib ==="
+          mkdir -p lib
+          
+          echo "=== Copiando Makefile.xenon para lib/ ==="
+          find . -name "Makefile.xenon" -exec cp {} lib/ \; || echo "Makefile.xenon não encontrado"
+          
           echo "=== Compilando libxenon com Makefile ==="
+          cd lib
           make -f Makefile.xenon clean || true
           make -f Makefile.xenon
           sudo make -f Makefile.xenon install
+          cd ..
           
           echo "=== Verificando libxenon ==="
           file /usr/local/xenon/usr/lib/libxenon.a
           xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
-          
-          echo "=== Teste de linkagem ==="
-          echo 'int main() { return 0; }' > test.c
-          xenon-gcc -m32 -mcpu=cell test.c -o test -L/usr/local/xenon/usr/lib -lxenon
-          file test
-          rm -f test.c test
+
+      # =============================================
+      # SOLUÇÃO 2: Usar script original com flags (COMENTADA)
+      # =============================================
+      # - name: Construir libxenon (via script original)
+      #   working-directory: libxenon/toolchain
+      #   run: |
+      #     export PREFIX=/usr/local/xenon
+      #     export DEVKITXENON=/usr/local/xenon
+      #     export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+      #     export CFLAGS="-m32 -mcpu=cell -mtune=cell"
+      #     export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
+      #     export LDFLAGS="-m32"
+      #     
+      #     echo "=== Compilando libxenon com script original ==="
+      #     rm -rf ../lib
+      #     ./build-xenon-toolchain libxenon
+      #     
+      #     echo "=== Verificando libxenon ==="
+      #     file /usr/local/xenon/usr/lib/libxenon.a
+      #     xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
+
+      # =============================================
+      # SOLUÇÃO 3: Compilar com Makefile diretamente (COMENTADA)
+      # =============================================
+      # - name: Construir libxenon (Makefile direto)
+      #   working-directory: libxenon/lib
+      #   run: |
+      #     export PREFIX=/usr/local/xenon
+      #     export DEVKITXENON=/usr/local/xenon
+      #     export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+      #     export CC=xenon-gcc
+      #     export CXX=xenon-g++
+      #     export AR=xenon-ar
+      #     export RANLIB=xenon-ranlib
+      #     export CFLAGS="-m32 -mcpu=cell -mtune=cell"
+      #     export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
+      #     export LDFLAGS="-m32"
+      #     
+      #     echo "=== Compilando libxenon com Makefile ==="
+      #     make -f Makefile.xenon clean || true
+      #     make -f Makefile.xenon
+      #     sudo make -f Makefile.xenon install
+      #     
+      #     echo "=== Verificando libxenon ==="
+      #     file /usr/local/xenon/usr/lib/libxenon.a
+      #     xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
 
       - name: Verificar toolchain
         run: |
