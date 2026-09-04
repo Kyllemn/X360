@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-${{ runner.os }}-v6
+          key: xenon-toolchain-${{ runner.os }}-v8
           restore-keys: |
             xenon-toolchain-${{ runner.os }}-
 
@@ -39,21 +39,26 @@ jobs:
           export PREFIX=/usr/local/xenon
           ./build-xenon-toolchain toolchain
 
-      - name: Construir libxenon (via script com flags)
+      - name: Construir libxenon (com flags FORÇADAS)
         working-directory: libxenon/toolchain
         run: |
           export PREFIX=/usr/local/xenon
           export DEVKITXENON=/usr/local/xenon
           export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
-          export CFLAGS="-m32 -mcpu=cell -mtune=cell"
-          export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
           
-          echo "=== Compilando libxenon ==="
+          echo "=== Compilando libxenon com arquitetura PowerPC ==="
+          
+          # Modifica o script para usar as flags corretas
+          sed -i 's/--build=\$BUILD/--build=\$BUILD --host=xenon/g' build-xenon-toolchain
+          
+          # Limpa builds anteriores
+          rm -rf ../lib
+          
+          # Compila forçando a arquitetura
           ./build-xenon-toolchain libxenon
           
-          echo "=== Verificando libxenon ==="
-          file /usr/local/xenon/usr/lib/libxenon.a
-          xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
+          echo "=== Verificando arquitetura da libxenon ==="
+          xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -10
 
       - name: Verificar toolchain
         run: |
@@ -78,7 +83,6 @@ jobs:
           export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
           file build/xboxcdtest.elf
           xenon-objdump -h build/xboxcdtest.elf || true
-          xenon-nm build/xboxcdtest.elf | head -40 || true
 
       - name: Publicar artefatos do build
         uses: actions/upload-artifact@v4
