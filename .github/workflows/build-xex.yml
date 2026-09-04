@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-${{ runner.os }}-${{ github.sha }}
+          key: xenon-toolchain-${{ runner.os }}-v4
           restore-keys: |
             xenon-toolchain-${{ runner.os }}-
 
@@ -39,13 +39,26 @@ jobs:
           export PREFIX=/usr/local/xenon
           ./build-xenon-toolchain toolchain
 
-      - name: Construir e instalar libxenon
+      - name: Construir e instalar libxenon (corrigido)
         working-directory: libxenon/toolchain
         run: |
           export PREFIX=/usr/local/xenon
           export DEVKITXENON=/usr/local/xenon
           export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          
+          echo "=== Compilando libxenon com arquitetura correta ==="
+          # Modifica o script para usar as flags certas
+          sed -i 's/CFLAGS=""/CFLAGS="-m32 -mcpu=cell -mtune=cell"/g' build-xenon-toolchain
+          sed -i 's/CXXFLAGS=""/CXXFLAGS="-m32 -mcpu=cell -mtune=cell"/g' build-xenon-toolchain
+          
+          # Limpa build anterior
+          rm -rf ../lib
+          
+          # Compila com as flags forçadas
           ./build-xenon-toolchain libxenon
+          
+          echo "=== Verificando arquitetura da libxenon ==="
+          xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -10
 
       - name: Verificar toolchain
         run: |
@@ -71,20 +84,21 @@ jobs:
           xenon-objdump -f test.o
           rm -f test.c test.o
 
-      - name: Construir SynthXEX (experimental)
-        id: synthxex
-        continue-on-error: true
-        run: |
-          git clone https://git.aidenisik.scot/FreeChainXenon/SynthXEX.git synthxex-src
-          cd synthxex-src
-          mkdir build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-          make
-          sudo make install
+      # SynthXEX comentado temporariamente devido a erro 128 (repositório offline)
+      # - name: Construir SynthXEX (experimental)
+      #   id: synthxex
+      #   continue-on-error: true
+      #   run: |
+      #     git clone https://git.aidenisik.scot/FreeChainXenon/SynthXEX.git synthxex-src
+      #     cd synthxex-src
+      #     mkdir build && cd build
+      #     cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+      #     make
+      #     sudo make install
 
-      - name: Mostrar uso real do SynthXEX
-        if: steps.synthxex.outcome == 'success'
-        run: synthxex --help || synthxex -h || true
+      # - name: Mostrar uso real do SynthXEX
+      #   if: steps.synthxex.outcome == 'success'
+      #   run: synthxex --help || synthxex -h || true
 
       - name: Compilar o ELF do XboxCDTest
         run: |
@@ -101,28 +115,29 @@ jobs:
           xenon-objdump -h build/xboxcdtest.elf || true
           xenon-nm build/xboxcdtest.elf | head -40 || true
 
-      - name: Converter ELF -> XEX (SynthXEX)
-        if: steps.synthxex.outcome == 'success'
-        continue-on-error: true
-        run: |
-          synthxex -o build/xboxcdtest.xex build/xboxcdtest.elf || \
-          synthxex build/xboxcdtest.elf build/xboxcdtest.xex || true
-          file build/xboxcdtest.xex || true
+      # Conversão para XEX comentada temporariamente (depende do SynthXEX)
+      # - name: Converter ELF -> XEX (SynthXEX)
+      #   if: steps.synthxex.outcome == 'success'
+      #   continue-on-error: true
+      #   run: |
+      #     synthxex -o build/xboxcdtest.xex build/xboxcdtest.elf || \
+      #     synthxex build/xboxcdtest.elf build/xboxcdtest.xex || true
+      #     file build/xboxcdtest.xex || true
 
-      - name: Validar XEX gerado
-        if: steps.synthxex.outcome == 'success'
-        run: |
-          if [ -f build/xboxcdtest.xex ]; then
-            SIZE=$(stat -c%s build/xboxcdtest.xex 2>/dev/null || stat -f%z build/xboxcdtest.xex 2>/dev/null)
-            echo "Tamanho do XEX: $SIZE bytes"
-            if [ "$SIZE" -lt 1024 ]; then
-              echo "⚠️ XEX muito pequeno ($SIZE bytes) - pode estar corrompido!"
-            else
-              echo "✅ XEX parece válido (tamanho: $SIZE bytes)"
-            fi
-          else
-            echo "⚠️ Arquivo XEX não foi gerado!"
-          fi
+      # - name: Validar XEX gerado
+      #   if: steps.synthxex.outcome == 'success'
+      #   run: |
+      #     if [ -f build/xboxcdtest.xex ]; then
+      #       SIZE=$(stat -c%s build/xboxcdtest.xex 2>/dev/null || stat -f%z build/xboxcdtest.xex 2>/dev/null)
+      #       echo "Tamanho do XEX: $SIZE bytes"
+      #       if [ "$SIZE" -lt 1024 ]; then
+      #         echo "⚠️ XEX muito pequeno ($SIZE bytes) - pode estar corrompido!"
+      #       else
+      #         echo "✅ XEX parece válido (tamanho: $SIZE bytes)"
+      #       fi
+      #     else
+      #       echo "⚠️ Arquivo XEX não foi gerado!"
+      #     fi
 
       - name: Publicar artefatos do build
         uses: actions/upload-artifact@v4
