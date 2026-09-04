@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-v1
+          key: xenon-toolchain-v2
 
       - name: Clonar libxenon (Free60Project)
         run: git clone --depth 1 https://github.com/Free60Project/libxenon.git
