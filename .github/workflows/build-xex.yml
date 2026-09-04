@@ -1,0 +1,135 @@
+name: Build XboxCDTest XEX
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout do projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências de build do host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison gcc-multilib libgmp3-dev libmpfr-dev \
+            libmpc-dev texinfo git-core build-essential wget file pv cmake \
+            libgmp-dev nettle-dev
+
+      - name: Cache do toolchain Xenon
+        id: cache-xenon
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/xenon
+          key: xenon-toolchain-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            xenon-toolchain-${{ runner.os }}-
+
+      - name: Clonar libxenon (Free60Project)
+        run: git clone --depth 1 https://github.com/Free60Project/libxenon.git
+
+      - name: Construir toolchain Xenon (binutils + gcc + newlib)
+        if: steps.cache-xenon.outputs.cache-hit != 'true'
+        working-directory: libxenon/toolchain
+        run: |
+          export PREFIX=/usr/local/xenon
+          ./build-xenon-toolchain toolchain
+
+      - name: Construir e instalar libxenon
+        working-directory: libxenon/toolchain
+        run: |
+          export PREFIX=/usr/local/xenon
+          export DEVKITXENON=/usr/local/xenon
+          export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          ./build-xenon-toolchain libxenon
+
+      - name: Verificar toolchain
+        run: |
+          export DEVKITXENON=/usr/local/xenon
+          export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          which xenon-gcc
+          which xenon-g++
+          which xenon-ld
+          which xenon-objcopy
+          xenon-gcc --version
+
+      - name: Verificar libxenon e arquitetura
+        run: |
+          export DEVKITXENON=/usr/local/xenon
+          export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          echo "=== Conteúdo de /usr/local/xenon/usr/lib/ ==="
+          ls -la /usr/local/xenon/usr/lib/
+          echo "=== Verificando libxenon.a ==="
+          file /usr/local/xenon/usr/lib/libxenon.a
+          echo "=== Teste de compilação simples ==="
+          echo 'int main() { return 0; }' > test.c
+          xenon-gcc -c test.c -o test.o
+          xenon-objdump -f test.o
+          rm -f test.c test.o
+
+      - name: Construir SynthXEX (experimental)
+        id: synthxex
+        continue-on-error: true
+        run: |
+          git clone https://git.aidenisik.scot/FreeChainXenon/SynthXEX.git synthxex-src
+          cd synthxex-src
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make
+          sudo make install
+
+      - name: Mostrar uso real do SynthXEX
+        if: steps.synthxex.outcome == 'success'
+        run: synthxex --help || synthxex -h || true
+
+      - name: Compilar o ELF do XboxCDTest
+        run: |
+          export DEVKITXENON=/usr/local/xenon
+          export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          make clean
+          make elf
+
+      - name: Verificar o ELF gerado
+        run: |
+          export DEVKITXENON=/usr/local/xenon
+          export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          file build/xboxcdtest.elf
+          xenon-objdump -h build/xboxcdtest.elf || true
+          xenon-nm build/xboxcdtest.elf | head -40 || true
+
+      - name: Converter ELF -> XEX (SynthXEX)
+        if: steps.synthxex.outcome == 'success'
+        continue-on-error: true
+        run: |
+          synthxex -o build/xboxcdtest.xex build/xboxcdtest.elf || \
+          synthxex build/xboxcdtest.elf build/xboxcdtest.xex || true
+          file build/xboxcdtest.xex || true
+
+      - name: Validar XEX gerado
+        if: steps.synthxex.outcome == 'success'
+        run: |
+          if [ -f build/xboxcdtest.xex ]; then
+            SIZE=$(stat -c%s build/xboxcdtest.xex 2>/dev/null || stat -f%z build/xboxcdtest.xex 2>/dev/null)
+            echo "Tamanho do XEX: $SIZE bytes"
+            if [ "$SIZE" -lt 1024 ]; then
+              echo "⚠️ XEX muito pequeno ($SIZE bytes) - pode estar corrompido!"
+            else
+              echo "✅ XEX parece válido (tamanho: $SIZE bytes)"
+            fi
+          else
+            echo "⚠️ Arquivo XEX não foi gerado!"
+          fi
+
+      - name: Publicar artefatos do build
+        uses: actions/upload-artifact@v4
+        with:
+          name: xboxcdtest-build
+          path: |
+            build/xboxcdtest.elf
+            build/xboxcdtest.xex
+            libxenon/toolchain/build.log
+          if-no-files-found: warn
