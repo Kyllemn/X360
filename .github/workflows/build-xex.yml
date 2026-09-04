@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/xenon
-          key: xenon-toolchain-${{ runner.os }}-v8
+          key: xenon-toolchain-${{ runner.os }}-v9
           restore-keys: |
             xenon-toolchain-${{ runner.os }}-
 
@@ -39,26 +39,34 @@ jobs:
           export PREFIX=/usr/local/xenon
           ./build-xenon-toolchain toolchain
 
-      - name: Construir libxenon (com flags FORÇADAS)
-        working-directory: libxenon/toolchain
+      - name: Construir libxenon (usando Makefile diretamente)
+        working-directory: libxenon/lib
         run: |
           export PREFIX=/usr/local/xenon
           export DEVKITXENON=/usr/local/xenon
           export PATH="$DEVKITXENON/bin:$DEVKITXENON/usr/bin:$PATH"
+          export CC=xenon-gcc
+          export CXX=xenon-g++
+          export AR=xenon-ar
+          export RANLIB=xenon-ranlib
+          export CFLAGS="-m32 -mcpu=cell -mtune=cell"
+          export CXXFLAGS="-m32 -mcpu=cell -mtune=cell"
+          export LDFLAGS="-m32"
           
-          echo "=== Compilando libxenon com arquitetura PowerPC ==="
+          echo "=== Compilando libxenon com Makefile ==="
+          make -f Makefile.xenon clean || true
+          make -f Makefile.xenon
+          sudo make -f Makefile.xenon install
           
-          # Modifica o script para usar as flags corretas
-          sed -i 's/--build=\$BUILD/--build=\$BUILD --host=xenon/g' build-xenon-toolchain
+          echo "=== Verificando libxenon ==="
+          file /usr/local/xenon/usr/lib/libxenon.a
+          xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -5
           
-          # Limpa builds anteriores
-          rm -rf ../lib
-          
-          # Compila forçando a arquitetura
-          ./build-xenon-toolchain libxenon
-          
-          echo "=== Verificando arquitetura da libxenon ==="
-          xenon-objdump -f /usr/local/xenon/usr/lib/libxenon.a | head -10
+          echo "=== Teste de linkagem ==="
+          echo 'int main() { return 0; }' > test.c
+          xenon-gcc -m32 -mcpu=cell test.c -o test -L/usr/local/xenon/usr/lib -lxenon
+          file test
+          rm -f test.c test
 
       - name: Verificar toolchain
         run: |
