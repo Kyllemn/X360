@@ -14,10 +14,10 @@ jobs:
       - name: Checkout do projeto
         uses: actions/checkout@v4
 
-      - name: Instalar dependências de build do host
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y flex bison gcc-multilib libgmp3-dev libmpfr-dev \
+  - name: Instalar dependências de build do host
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y flex bison gcc-multilib libgmp3-dev libmpfr-dev \
       libmpc-dev texinfo git-core build-essential wget file pv cmake \
       libgmp-dev nettle-dev
 
