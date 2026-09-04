@@ -14,11 +14,14 @@ XEX := $(BUILD)/$(NAME).xex
 CFLAGS := -O2 -g -Wall -Wextra -DXENON
 CFLAGS += -I$(DEVKITXENON)/usr/include
 
-# CORREÇÃO: aponta para o lugar certo da libxenon
+# CORREÇÃO: Adiciona os caminhos corretos para as bibliotecas
 LDFLAGS := -T$(DEVKITXENON)/app.lds
-LDFLAGS += -L$(DEVKITXENON)/usr/lib    # <--- ESSE É O CAMINHO CERTO
+LDFLAGS += -L$(DEVKITXENON)/usr/lib
+LDFLAGS += -L$(DEVKITXENON)/lib/gcc/xenon/9.2.0
+LDFLAGS += -L$(DEVKITXENON)/xenon/lib
 
-LIBS := -lxenon -lm
+# CORREÇÃO: Adiciona -lgcc e -lc (ordem importa!)
+LIBS := -lxenon -lm -lgcc -lc
 
 .PHONY: all elf xex clean
 
